@@ -42,9 +42,10 @@ next-env.d.ts
 
 /src/generated/prisma
 
-package-lock.json
-package.json
+# package-lock.json and package.json must NOT be ignored (needed for Vercel)
 # clerk configuration (can include secrets)
 /.clerk/
 
 .env
+.env.local
+.env.production
