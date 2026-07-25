@@ -1,5 +1,5 @@
 {
-  
+  "browserslist": "> 1%",
   "name": "cloudinary-saas",
   
   "version": "0.1.0",
@@ -9,7 +9,7 @@
   "scripts": {
   
     
-  "dev": "next dev --turbopack",
+  "dev": "next dev ",
   
     
   "build": "prisma generate && next build",
@@ -83,7 +83,7 @@
   "@types/react-dom": "^19",
   
     
-  "daisyui": "^5.1.7",
+  "daisyui": "^5.7.4",
   
     
   "eslint": "^9",
