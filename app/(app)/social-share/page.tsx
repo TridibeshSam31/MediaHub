@@ -17,6 +17,7 @@ const socialFormats = {
     const [uploadedImage, setUploadedImage] = useState<string | null>(null);
     const [selectedFormat, setSelectedFormat] = useState<SocialFormat>("Instagram Square (1:1)");
     const [isUploading, setIsUploading] = useState(false);
+    const [uploadStatus, setUploadStatus] = useState("");
     const [isTransforming, setIsTransforming] = useState(false);
     const imageRef = useRef<HTMLImageElement>(null);
 
@@ -30,27 +31,47 @@ const socialFormats = {
     const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if(!file) return;
+
+        if(file.size > 10 * 1024 * 1024){
+            alert("Image is too large. Please choose an image under 10MB.");
+            return;
+        }
+
         setIsUploading(true);
+        setUploadStatus("Uploading image to Cloudinary...");
         const formData = new FormData();
         formData.append("file", file);
+        const controller = new AbortController();
+        const timeoutId = window.setTimeout(() => controller.abort(), 60000);
 
         try {
             const response = await fetch("/api/image-upload", {
                 method: "POST",
-                body: formData
+                body: formData,
+                signal: controller.signal,
             })
 
-            if(!response.ok) throw new Error("Failed to upload image");
+            if(!response.ok) {
+                const errorData = await response.json().catch(() => null);
+                throw new Error(errorData?.error || "Failed to upload image");
+            }
 
             const data = await response.json();
+            setUploadStatus("Upload complete. Loading preview...");
             setUploadedImage(data.publicId);
 
 
         } catch (error) {
             console.log(error)
-            alert("Failed to upload image");
+            if(error instanceof DOMException && error.name === "AbortError"){
+                alert("Upload timed out after 60 seconds. Please check your Cloudinary credentials/network or try a smaller image.");
+            }else{
+                alert(error instanceof Error ? error.message : "Failed to upload image");
+            }
         } finally{
+            window.clearTimeout(timeoutId);
             setIsUploading(false);
+            setUploadStatus("");
         }
     };
 
@@ -90,6 +111,7 @@ const socialFormats = {
                 </label>
                 <input
                   type="file"
+                  accept="image/*"
                   onChange={handleFileUpload}
                   className="file-input file-input-bordered file-input-primary w-full"
                 />
@@ -98,6 +120,9 @@ const socialFormats = {
               {isUploading && (
                 <div className="mt-4">
                   <progress className="progress progress-primary w-full"></progress>
+                  <p className="text-sm text-base-content opacity-70 mt-2">
+                    {uploadStatus}
+                  </p>
                 </div>
               )}
 

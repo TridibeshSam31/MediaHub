@@ -5,12 +5,12 @@
 import { NextRequest,NextResponse } from "next/server";
 import { v2 as cloudinary } from "cloudinary";
 import { auth } from "@clerk/nextjs/server";
-import { PrismaClient } from "@prisma/client"
+import { prisma } from "@/lib/prisma";
 
 
 type CloudinaryUploadResult = {
     public_id: string;
-    [key: string]: any;
+    [key: string]: unknown;
     bytes: number;
     duration?: string;
 }
@@ -21,7 +21,8 @@ cloudinary.config({
     api_secret:process.env.CLOUDINARY_API_SECRET
 })
 
-const prisma = new PrismaClient()//initialising prisma db
+//initialising prisma db ab lib/prisma.ts ke shared client se ho raha hai
+export const runtime = "nodejs";
 
 export async function POST(request:NextRequest){
     //simialr to image upload the process is same we just have to change the resource type to video
@@ -46,8 +47,16 @@ export async function POST(request:NextRequest){
         const description = formData.get("description") as string;
         const originalSize = formData.get("originalSize") as string;
 
-        if(!file||!title||!description||!originalSize){
-            return NextResponse.json({error:"fill all the details"},{status:401})
+        if(!file||!title||!originalSize){
+            return NextResponse.json({error:"Please select a video and add a title"},{status:400})
+        }
+
+        if(!file.type.startsWith("video/")){
+            return NextResponse.json({error:"Please upload a valid video file"},{status:400})
+        }
+
+        if(file.size > 60 * 1024 * 1024){
+            return NextResponse.json({error:"File size is too large. Maximum size is 60MB."},{status:413})
         }
 
         const bytes = await file.arrayBuffer()
@@ -61,9 +70,6 @@ export async function POST(request:NextRequest){
                     {
                         resource_type: "video",
                         folder: "video-uploads",
-                        transformation: [
-                            {quality: "auto", fetch_format: "mp4"},
-                        ]
                     },
                     (error, result) => {
                         if(error) reject(error);
@@ -78,9 +84,9 @@ export async function POST(request:NextRequest){
         const video = await prisma.video.create({
             data: {
                 title,
-                description,
+                description: description || "",
                 publicId: result.public_id,
-                originalSize: originalSize,
+                originalSize: String(file.size),
                 compressedSize: String(result.bytes),
                 duration: result.duration ? String(result.duration) : "0",
             }
@@ -136,8 +142,6 @@ export async function POST(request:NextRequest){
     } catch (error) {
         console.log("Error in uploading video:",error)
         return NextResponse.json({error:"Error in uploading video"},{status:500})
-    }finally{
-        await prisma.$disconnect()
     }
 }
     

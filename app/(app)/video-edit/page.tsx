@@ -1,6 +1,6 @@
 "use client"
 import React, { useState, useRef, useEffect } from 'react';
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 import { useRouter } from 'next/navigation';
 import toast, { Toaster } from "react-hot-toast";
 import VideoTrimmer from '@/components/VideoTrimmer';
@@ -67,8 +67,9 @@ function VideoEdit() {
       setUploadedVideo(response.data);
       setStep('trim');
       toast.success("Video uploaded! Now you can trim it.");
-    } catch (error: any) {
-      const errorMessage = error?.response?.data?.error || "Upload failed";
+    } catch (error) {
+      const axiosError = error as AxiosError<{ error?: string }>;
+      const errorMessage = axiosError.response?.data?.error || "Upload failed";
       toast.error(errorMessage);
     } finally {
       setIsUploading(false);
@@ -83,7 +84,7 @@ function VideoEdit() {
 
     setIsTrimming(true);
     try {
-      const response = await axios.post("/api/video-trim", {
+      await axios.post("/api/video-trim", {
         publicId: uploadedVideo.publicId,
         startTime,
         endTime,
@@ -96,8 +97,9 @@ function VideoEdit() {
       setTimeout(() => {
         router.push("/home");
       }, 2000);
-    } catch (error: any) {
-      const errorMessage = error?.response?.data?.error || "Trim failed";
+    } catch (error) {
+      const axiosError = error as AxiosError<{ error?: string }>;
+      const errorMessage = axiosError.response?.data?.error || "Trim failed";
       toast.error(errorMessage);
     } finally {
       setIsTrimming(false);

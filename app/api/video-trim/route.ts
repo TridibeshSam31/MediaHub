@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { v2 as cloudinary } from "cloudinary";
 import { auth } from "@clerk/nextjs/server";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 
+type CloudinaryUploadResult = {
+    public_id: string;
+    bytes?: number;
+    [key: string]: unknown;
+}
 
 cloudinary.config({
     cloud_name: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
@@ -10,7 +15,7 @@ cloudinary.config({
     api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
-const prisma = new PrismaClient();
+export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
     try {
@@ -85,7 +90,7 @@ export async function POST(request: NextRequest) {
         const buffer = Buffer.from(arrayBuffer);
 
         // Upload the trimmed video to Cloudinary
-        const trimmedResult = await new Promise<any>((resolve, reject) => {
+        const trimmedResult = await new Promise<CloudinaryUploadResult>((resolve, reject) => {
             const uploadStream = cloudinary.uploader.upload_stream(
                 {
                     resource_type: "video",
@@ -96,6 +101,7 @@ export async function POST(request: NextRequest) {
                 },
                 (error, result) => {
                     if (error) reject(error);
+                    else if (!result) reject(new Error("Upload failed"));
                     else resolve(result);
                 }
             );
@@ -122,8 +128,6 @@ export async function POST(request: NextRequest) {
             { error: "Error trimming video" },
             { status: 500 }
         );
-    } finally {
-        await prisma.$disconnect();
     }
 }
 
